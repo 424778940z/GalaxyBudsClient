@@ -1,0 +1,53 @@
+name: Compile Linux binaries
+
+on:
+  push:
+    branches: [ master, project-upgrade ]
+  pull_request:
+    branches: [ master ]
+  release:
+     types: 
+       - published
+       - prereleased
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.101
+       
+    - name: Restore dependencies
+      run: dotnet restore -r linux-x64 --configfile GalaxyBudsClient/nuget.config GalaxyBudsClient/GalaxyBudsClient.csproj
+    - name: Build android
+      run: dotnet publish -f net8.0-android -c Release -p:AndroidKeyStore=true -p:AndroidSigningKeyStore=_KeyStores/keystore.jks -p:AndroidPackageFormats=apk -p:AndroidSigningKeyAlias=galaxybudsclient -p:AndroidSdkDirectory=/usr/local/lib/android/sdk -p:AndroidSigningKeyPass="env:PASS" -p:AndroidSigningStorePass="env:PASS" -p:NotDebuggable=true -p:EmbedAssembliesIntoApk=true -v d
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: GalaxyBudsClient_android
+        path: bin_linux64/GalaxyBudsClient
+    
+  # attach-to-release:
+  #   runs-on: windows-latest
+  #   needs: [build-android]
+  #   if: github.event_name == 'release'
+     
+  #   steps:
+  #   - name: Download setup artifact (x64)
+  #     uses: actions/download-artifact@v4
+  #     with:
+  #       name: GalaxyBudsClient_linux-amd64_portable
+    
+  #   - name: Rename (x64)
+  #     run: ren GalaxyBudsClient GalaxyBudsClient_Linux_64bit_Portable.bin
+
+  #   - uses: AButler/upload-release-assets@v2.0
+  #     with:
+  #       files: '*.apk'
+  #       repo-token: ${{ secrets.GH_TOKEN }}
